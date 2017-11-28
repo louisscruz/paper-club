@@ -99,3 +99,79 @@ This introduces some complexity in regards to the timestamps.
 A leader must only assign timestamps within the interval of its lease.
 
 Also, if transaction T2 occurs after T1, then the timestamp of the start for T2 must be greater than the commit of T1.
+
+#### Serving Reads at a Timestamp
+
+Each replica keeps track of the safe time (the last time at which everything was up to date).
+This ends up being the minimum of both the paxos safe time and the transaction manager's safe time.
+Transactions in the middle of a two-phase commit are given a safe time of infinity.
+
+#### Assigning Timestamps to Read-Only Transactions
+
+There are two phases:
+
+1. Assign a timestamp to the read.
+2. Then, execute the reads as snapshot reads.
+
+These can occur at any replica that is up to date.
+
+### Details
+
+#### Read-Write Transactions
+
+Writes that occur in a transaction are buffered at the client until commit.
+Therefore, reads in a transaction do not see the effects of the transaction's writes.
+
+Reads in read-write transactions are wound-wait (references to data of future transactions are rolled back) to avoid deadlocks.
+
+#### Read-Only Transactions
+
+Assigning a timestamp requires a negotiation phase between all the Paxos groups that are involved in the reads.
+Therefore, scope must be provided for each one of these.
+
+For single-site reads, Spanner does better than `TT.now().latest`, referencing the last transacted commit write time.
+This satisfies external consistency.
+
+#### Schema Change Transactions
+
+TrueTime allows Spanner to perform atomic schema changes.
+For a schema change of t, all reads and writes will succeed if they precede t, but will be blocked otherwise.
+
+#### Refinements
+
+There are few very minor adjustments that have to be made for various manners of timestamping.
+
+## Evaluation
+
+### Benchmarks
+
+Two-phase commits get a bit too slow around 100 participants.
+
+### Availability
+
+Throughput rises on leader election.
+
+### TrueTime
+
+Epsilon is actually a fairly small value.
+The 99.9 percentile peaks around 10ms, and that includes tail-latency.
+
+## F1
+
+Failover has been invisible to them.
+They chose Spanner because MySQL wasn't cutting it, and they needed consistency (so BigTable wasn't an option).
+
+## Related Work
+
+DynamoDB uses a key-value interface, but it only replicates within a region.
+Megastore allows for replication outside a region but does not achieve high performance.
+
+## Future Work
+
+Spanner is used for Google's advertising.
+
+They are implementing automatic maintenance of secondary indices, automatic load-based sharding, and a few other things.
+
+## Conclusions
+
+TrueTime is the linch pin.
