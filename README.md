@@ -6,5 +6,7 @@ Because my readings of these papers will probably have to be made quickly, my no
 ## Index
 
 * [Spanner]
+* [Raft]
 
 [Spanner]: ./notes/spanner-osdi-2012.md
+[Raft]: ./notes/raft.md
